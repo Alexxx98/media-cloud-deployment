@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: media-cloud-db
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - PGUSER=${POSTGRES_USER}
+      - PGDATABASE=${POSTGRES_DB}
+    ports:
+      - "5434:5432"
+    volumes:
+      - db-data:/var/lib/postgres/data
+    networks:
+      - db-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-U", "${PGUSER}", "-d", "${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ../api
+      args:
+        STORAGE_PATH: ${CONTAINER_STORAGE}
+    container_name: media-cloud-api
+    environment:
+      - STORAGE_PATH=${CONTAINER_STORAGE}
+      - ORIGINS=${ORIGINS}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+    volumes:
+      - ${HOST_STORAGE}:${CONTAINER_STORAGE}
+    ports:
+      - "8000:8000"
+    networks:
+      - db-network
+      - api-network
+    depends_on:
+      db:
+        condition: service_healthy
+    
+networks:
+  db-network:
+  api-network:
+
+volumes:
+  db-data:
